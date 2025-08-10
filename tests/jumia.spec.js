@@ -17,21 +17,35 @@ test('Viewing a product', async ({ page }) => {
 test('Add to cart', async ({ page }) => {
     await page.goto('https://www.jumia.com.ng/catalog/?q=Laptop');
     await page.locator('article a.core').first().click();
-    await page.waitForSelector('button.add', { timeout: 10000 })
-    await page.click('button.add');
+    await page.waitForSelector('button.add', { timeout: 10000 });
+    const [response] = await Promise.all([
+        page.waitForResponse(/\/cart/),
+        page.click('button.add')
+    ]);
+    expect (response.status()).toBe(200);
 });
 
 test('Remove from Cart', async ({ page }) => {
+    test.slow(); 
+
     await page.goto('https://www.jumia.com.ng/cart/');
 
-    if (await page.locator('button.remove').count() > 0) {
-        await page.locator('button.remove').first().click();
-        await expect(page.locator('text=Your cart is empty')).toBeVisible({ timeout: 10000 });
-        await expect(page.locator('text=Start Shopping')).toBeVisible();
+    const removeButton = page.getByRole('button', { name: 'remove' });
+    const emptyText = page.getByText('Your cart is empty');
+
+    if (await removeButton.count() > 0) {
+      const [response] = await Promise.all([
+        page.waitForResponse(resp => resp.url().includes('/cart') && resp.status() === 200),
+        removeButton.first().click()
+      ]);
+      expect(response.ok()).toBeTruthy();
+
+      await expect(emptyText).toBeVisible();
+      await expect(page.getByText('Start Shopping')).toBeVisible();
     } else {
-        await expect(page.locator('text=Your cart is empty')).toBeVisible();
-        await expect(page.locator('text=Start Shopping')).toBeVisible();
-        console.log('Cart was already empty');
+      await expect(emptyText).toBeVisible();
+      await expect(page.getByText('Start Shopping')).toBeVisible();
+      console.log('Cart was already empty before test.');
     }
 });
 
@@ -40,3 +54,5 @@ test('To check for empty state', async ({ page }) => {
     await expect(page.locator('text=Your cart is empty')).toBeVisible();
     await expect(page.locator('text=Start Shopping')).toBeVisible();
 });
+
+
